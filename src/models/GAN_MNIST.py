@@ -40,14 +40,14 @@ class GANMNIST(GAN):
 
         return out
 
-    def discriminator(self, x, params=None):
+    def discriminator(self, x, drop_out=None, params=None):
         """
         Discriminator with applying only flat tensor with fully connected network
         :param x: input tensor
         :param params: parameters for specific regulator or pooling layer
         :return:
         """
-        drop_out = params['drop_out']
+        # drop_out = params['drop_out']
 
         # initializer
         w_init = tf.truncated_normal_initializer(mean=0, stddev=0.02)
@@ -133,15 +133,16 @@ class GANMNIST(GAN):
         with tf.variable_scope('d') as scope:
             drop_out = tf.placeholder(dtype=tf.float32, name='drop_out')
             x = tf.placeholder(tf.float32, shape=(None, 784))
-            d_real = self.discriminator(x, params=params)
+            d_real = self.discriminator(x, drop_out=drop_out,
+                                        params=params)
             scope.reuse_variables()
-            g_fake = self.discriminator(g_z, params)
-            return d_real, g_fake, x, drop_out
+            d_fake = self.discriminator(g_z, drop_out=drop_out, params=params)
+            return d_real, d_fake, x, drop_out
 
     def show_result(self, num_epoch, sess, g_z,
                     drop_out, z,
                     show=False, save=False,
-                    path='result.png', is_fix=False):
+                    path='/tmp', is_fix=False):
         fixed_z_ = np.random.normal(0, 1, (25, 100))
         z_ = np.random.normal(0, 1, (25, 100))
 
@@ -164,7 +165,7 @@ class GANMNIST(GAN):
 
         label = 'Epoch {0}'.format(num_epoch)
         fig.text(0.5, 0.04, label, ha='center')
-        plt.savefig(path)
+        plt.savefig(os.path.join(path, 'result_epoch_{}.png'.format(num_epoch)))
 
         if show:
             plt.show()
@@ -202,7 +203,7 @@ class GANMNIST(GAN):
 
         # open session and initialize all variables
         sess = tf.InteractiveSession()
-        tf.global_variables_initializer()
+        tf.global_variables_initializer().run()
 
         # training loop
         np.random.seed(int(time.time()))
@@ -233,6 +234,10 @@ class GANMNIST(GAN):
                   ((epoch + 1), train_epoch,
                    per_epoch_ptime, np.mean(d_losses), np.mean(g_losses)))
 
-            self.show_result(epoch, sess, g_z, drop_out, z, show=True, is_fix=False)
+            self.show_result(epoch, sess,
+                             g_z, drop_out,
+                             z, show=False,
+                             is_fix=False,
+                             path=output_folder)
 
         sess.close()
